@@ -7,10 +7,11 @@ on:
   pull_request:
     branches:
       - develop
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Maven Build
+  build-and-docker:
+    name: Maven Build & Docker Image
     runs-on: ubuntu-latest
 
     steps:
@@ -23,18 +24,19 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
+
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-  docker:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Verify JAR exists
+        run: ls -l target
 
       - name: Build Docker image
-        run: |
-          docker build -t myapp:develop .
+        run: docker build -t myapp:develop .
