@@ -20,12 +20,6 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Cache Maven packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
@@ -34,7 +28,7 @@ jobs:
           echo "${{ secrets.DOCKER_PASSWORD }}" | \
           docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Build Docker image
+      - name: Build Docker image with tags
         run: |
           docker build \
             -t krithi2020/springboot-practice2:latest \
