@@ -1,4 +1,4 @@
-name: Maven Build & Docker Image (Develop)
+name: CI/CD Auto Deploy to EC2 (Develop)
 
 on:
   push:
@@ -7,37 +7,54 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-push:
+  build-push-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Setup Java
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
+      # Build JAR
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
+      # Docker login
       - name: Login to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | \
-          docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image with tags
-        run: |
-          docker build \
-            -t krithi2020/springboot-practice2:latest \
-            -t krithi2020/springboot-practice2:develop \
-            -t krithi2020/springboot-practice2:${{ github.run_number }} \
-            .
+      # Build & push Docker image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            krithi2020/springboot-practice2:latest
+            krithi2020/springboot-practice2:${{ github.run_number }}
 
-      - name: Push Docker images
-        run: |
-          docker push krithi2020/springboot-practice2:latest
-          docker push krithi2020/springboot-practice2:develop
-          docker push krithi2020/springboot-practice2:${{ github.run_number }}
+      # 🚀 Auto deploy to EC2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull krithi2020/springboot-practice2:latest
+            docker stop springboot-app || true
+            docker rm springboot-app || true
+            docker run -d \
+              --name springboot-app \
+              -p 8081:8080 \
+              krithi2020/springboot-practice2:latest
