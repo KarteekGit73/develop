@@ -1,0 +1,43 @@
+name: Maven Build & Docker Image (Develop)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | \
+          docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker image with tags
+        run: |
+          docker build \
+            -t krithi2020/springboot-practice2:latest \
+            -t krithi2020/springboot-practice2:develop \
+            -t krithi2020/springboot-practice2:${{ github.run_number }} \
+            .
+
+      - name: Push Docker images
+        run: |
+          docker push krithi2020/springboot-practice2:latest
+          docker push krithi2020/springboot-practice2:develop
+          docker push krithi2020/springboot-practice2:${{ github.run_number }}
